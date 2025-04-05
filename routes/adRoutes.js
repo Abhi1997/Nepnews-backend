@@ -64,28 +64,40 @@ router.get("/", async (req, res) => {
   }
 });
 
-// router.delete("/:id", async(req, res) => {
-//   try{
-//     let ad = await Ad.findById(req.params.id);
-//     await cloudinary.uploader.destroy(userModel.cloudinary_id);
-//     await userModel.remove();
-//     res.json()
-//   }
-// });
-
-// const {
-//   createAd,
-//   getAllAds,
-//   updateAd,
-//   deleteAd,
-// } = require("../controllers/adController");
-
-// // Public route: show all ads if desired
-// router.get("/", getAllAds);
-
-// // Protected: create, update, delete (only adsManager / admin)
-// router.post("/", auth, createAd);
-// router.put("/:adId", auth, updateAd);
-// router.delete("/:adId", auth, deleteAd);
+router.delete("/:id", async (req, res) => {
+  try {
+    //find ad by id
+    let ad = await Ad.findById(req.params.id);
+    //Delete image from cloudinary
+    await cloudinary.uploader.destroy(ad.cloudinary_id);
+    //Delete ad from db
+    await Ad.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: "Ad deleted successfully" });
+  } catch (err) {
+    console.log(err);
+    res
+      .status(500)
+      .json({ message: "Something went wrong", error: err.message });
+  }
+});
+router.put("/:id", uploads.single("image"), async (req, res) => {
+  try {
+    let ad = await Ad.findById(req.params.id);
+    await cloudinary.uploader.destroy(ad.cloudinary_id);
+    const result = await cloudinary.uploader.upload(req.file.path);
+    const data = {
+      title: req.body.title || ad.title,
+      placement: ad.placement,
+      avatar: result.secure_url || ad.avatar,
+      cloudinary_id: result.public_id || ad.cloudinary_id,
+      url: req.body.url || ad.url,
+      category: req.body.category || ad.category,
+    };
+    ad = await Ad.findByIdAndUpdate(req.params.id, data, { new: true });
+    res.json(ad);
+  } catch (err) {
+    console.log(err);
+  }
+});
 
 module.exports = router;
